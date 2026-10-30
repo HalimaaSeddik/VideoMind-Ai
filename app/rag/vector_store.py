@@ -6,13 +6,17 @@ import chromadb
 import ollama
 
 
+
+
 EMBEDDING_MODEL = "embeddinggemma"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CHROMA_PATH = PROJECT_ROOT / "data" / "chroma"
 
 # Persistent storage: the database remains available after restarting.
-client = chromadb.PersistentClient(path=str(CHROMA_PATH))
+chroma_client = chromadb.PersistentClient(
+    path=str(CHROMA_PATH)
+)
 
 
 def get_video_collection(video_id: str):
@@ -20,7 +24,7 @@ def get_video_collection(video_id: str):
 
     collection_name = f"video_{video_id}"
 
-    return client.get_or_create_collection(
+    return  chroma_client.get_or_create_collection(
         name=collection_name,
         metadata={"hnsw:space": "cosine"},
     )

@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { askVideoQuestion, checkApi, processVideo } from "./api";
+import {
+  askVideoQuestion,
+  checkApi,
+  processVideo,
+  generateVideoSummary,
+} from "./api";
 
 function Icon({ name, size = 18 }) {
   const common = {
@@ -40,7 +45,10 @@ function formatTime(seconds = 0) {
   return `${minutes}:${String(secs).padStart(2, "0")}`;
 }
 
-function getYouTubeId(url) {
+
+
+function Sidebar({ onNewVideo, recentVideos, activeVideoId, onSelectRecent }) {
+  function getYouTubeId(url) {
   try {
     const parsed = new URL(url);
     if (parsed.hostname.endsWith("youtu.be")) return parsed.pathname.slice(1).split("/")[0];
@@ -57,8 +65,26 @@ function openTimestamp(videoUrl, start) {
   if (!id) return;
   window.open(`https://www.youtube.com/watch?v=${id}&t=${Math.floor(start || 0)}s`, "_blank", "noopener,noreferrer");
 }
+function getShortYouTubeUrl(longUrl) {
+  try {
+    const url = new URL(longUrl);
+    let videoId = '';
 
-function Sidebar({ onNewVideo, recentVideos, activeVideoId, onSelectRecent }) {
+    if (url.hostname.includes('youtube.com')) {
+      if (url.pathname.startsWith('/shorts/')) {
+        videoId = url.pathname.split('/')[2];
+      } else {
+        videoId = url.searchParams.get('v');
+      }
+    } else if (url.hostname.includes('youtu.be')) {
+      videoId = url.pathname.slice(1);
+    }
+
+    return videoId ? `https://youtu.be${videoId}` : longUrl;
+  } catch (e) {
+    return longUrl;
+  }
+}
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -86,7 +112,7 @@ function Sidebar({ onNewVideo, recentVideos, activeVideoId, onSelectRecent }) {
               title={video.title || video.source_url}
             >
               <span className="recent-icon"><Icon name="video" size={16} /></span>
-              <span className="recent-text">{video.title || video.source_url}</span>
+              <span className="recent-text">{getShortYouTubeUrl(video.title) || getShortYouTubeUrl(video.source_url)}</span>
             </button>
           ))}
         </div>
@@ -178,28 +204,133 @@ function VideoHeader({ video, onNewVideo }) {
   );
 }
 
-function SummaryPanel() {
+function SummaryPanel({
+  summary,
+  loading,
+  error,
+  onGenerate,
+}) {
   return (
     <section className="panel summary-panel">
       <div className="section-heading">
-        <div className="section-icon"><Icon name="book" size={18} /></div>
-        <div><h3>Video summary</h3><p>Key ideas at a glance</p></div>
-      </div>
-      <div className="summary-notice">
-        <Icon name="alert" size={19} />
+        <div className="section-icon">
+          <Icon name="book" size={18} />
+        </div>
+
         <div>
-          <strong>Summary generation is not connected yet</strong>
-          <p>The current backend extracts and indexes the transcript and supports grounded Q&amp;A. We can add a summary endpoint next.</p>
+          <h3>Video summary</h3>
+          <p>Key ideas at a glance</p>
         </div>
       </div>
-      <div className="summary-placeholder">
-        <div className="placeholder-line wide" />
-        <div className="placeholder-line" />
-        <div className="placeholder-line medium" />
-      </div>
-      <div className="takeaways-heading">WHAT YOU'LL SEE HERE</div>
-      <div className="takeaway-row"><span>01</span><p>A concise summary of the video's main idea</p></div>
-      <div className="takeaway-row"><span>02</span><p>The most important takeaways and concepts</p></div>
+
+      {!summary && !loading && (
+        <div className="summary-notice">
+          <Icon name="sparkle" size={19} />
+
+          <div>
+            <strong>Ready to summarize this video?</strong>
+
+            <p>
+              Generate a structured summary with the main
+              ideas, key takeaways, and important concepts.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="summary-loading">
+          <span className="spinner" />
+
+          <div>
+            <strong>Generating your summary...</strong>
+
+            <p>
+              The local AI model is analyzing the transcript.
+              This may take a few minutes.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="inline-error" role="alert">
+          <Icon name="alert" size={15} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!summary && (
+        <button
+          type="button"
+          className="primary-button summary-generate-button"
+          onClick={onGenerate}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spinner" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Icon name="sparkle" size={17} />
+              Generate summary
+            </>
+          )}
+        </button>
+      )}
+
+      {summary && (
+        <div className="summary-results">
+          <h4 className="summary-title">
+            {summary.title}
+          </h4>
+
+          <div className="summary-section">
+            <h4>Short summary</h4>
+            <p>{summary.short_summary}</p>
+          </div>
+
+          <div className="summary-section">
+            <h4>Detailed summary</h4>
+            <p>{summary.detailed_summary}</p>
+          </div>
+
+          {summary.key_takeaways?.length > 0 && (
+            <div className="summary-section">
+              <h4>Key takeaways</h4>
+
+              <ul>
+                {summary.key_takeaways.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {summary.important_concepts?.length > 0 && (
+            <div className="summary-section">
+              <h4>Important concepts</h4>
+
+              <ul>
+                {summary.important_concepts.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="text-button summary-regenerate-button"
+            onClick={onGenerate}
+            disabled={loading}
+          >
+            {loading ? "Generating..." : "Regenerate summary"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -289,7 +420,12 @@ export default function App() {
   const [messagesByVideo, setMessagesByVideo] = useState({});
   const [error, setError] = useState("");
   const [askError, setAskError] = useState("");
-
+  const [summaryByVideo, setSummaryByVideo] = useState({});
+const [summaryLoading, setSummaryLoading] = useState(false);
+const [summaryError, setSummaryError] = useState("");
+const currentSummary = video
+  ? summaryByVideo[video.video_id] || null
+  : null;
   useEffect(() => {
     checkApi()
       .then(() => setApiStatus("online"))
@@ -338,7 +474,34 @@ export default function App() {
       setLoading(false);
     }
   }
+async function handleGenerateSummary() {
+  if (!video || summaryLoading) return;
 
+  setSummaryError("");
+  setSummaryLoading(true);
+
+  try {
+    const result = await generateVideoSummary(
+      video.video_id,
+      "Arabic"
+    );
+
+    if (!result.summary) {
+      throw new Error("The backend returned an empty summary.");
+    }
+
+    setSummaryByVideo((previous) => ({
+      ...previous,
+      [video.video_id]: result.summary,
+    }));
+  } catch (err) {
+    setSummaryError(
+      err.message || "Could not generate the video summary."
+    );
+  } finally {
+    setSummaryLoading(false);
+  }
+}
   async function handleAsk(event) {
     event.preventDefault();
     if (!video || !question.trim()) return;
@@ -400,17 +563,23 @@ export default function App() {
               <ProcessingBanner loading={loading} />
               <VideoHeader video={video} onNewVideo={resetWorkspace} />
               <div className="content-grid">
-                <SummaryPanel />
-                <AskPanel
-                  video={video}
-                  messages={messages}
-                  onAsk={handleAsk}
-                  asking={asking}
-                  question={question}
-                  setQuestion={setQuestion}
-                  error={askError}
-                />
-              </div>
+  <SummaryPanel
+    summary={currentSummary}
+    loading={summaryLoading}
+    error={summaryError}
+    onGenerate={handleGenerateSummary}
+  />
+
+  <AskPanel
+    video={video}
+    messages={messages}
+    onAsk={handleAsk}
+    asking={asking}
+    question={question}
+    setQuestion={setQuestion}
+    error={askError}
+  />
+</div>
             </>
           )}
         </div>

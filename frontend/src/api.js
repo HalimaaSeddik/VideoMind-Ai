@@ -45,3 +45,17 @@ export function askVideoQuestion(videoId, question, language = "Arabic") {
     body: JSON.stringify({ question, language }),
   });
 }
+
+export function generateVideoSummary(
+  videoId,
+  language = "Arabic"
+) {
+  return request(
+    `/videos/${encodeURIComponent(videoId)}/summary/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ language }),
+    }
+  );
+}
+

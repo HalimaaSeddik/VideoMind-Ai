@@ -1,5 +1,7 @@
 import ollama
 
+
+from app.llm import client, OPENAI_MODEL
 MODEL_NAME = "embeddinggemma"
 
 texts = [

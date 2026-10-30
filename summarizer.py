@@ -1,14 +1,14 @@
-import ollama
 from pydantic import BaseModel, Field
 
-MODEL_NAME = "phi3"
-
+from app.llm import client, GROQ_MODEL
 
 
 class VideoSummary(BaseModel):
     """Structured output for a video summary."""
 
-    title: str = Field(description="A short, descriptive title for the video")
+    title: str = Field(
+        description="A short, descriptive title for the video"
+    )
 
     short_summary: str = Field(
         description="A concise summary of the main idea"
@@ -27,61 +27,72 @@ class VideoSummary(BaseModel):
     )
 
 
-def summarize_transcript(transcript: str, language: str = "Arabic") -> str:
-    """
-    Generate a structured summary of a video transcript.
-
-    Args:
-        transcript: The transcript text to summarize.
-        language: The language of the generated summary.
-
-    Returns:
-        A structured summary as a string.
-    """
+def summarize_transcript(
+    transcript: str,
+    language: str = "Arabic",
+) -> VideoSummary:
+    """Generate a structured summary using Groq."""
 
     if not transcript or not transcript.strip():
         raise ValueError("The transcript cannot be empty.")
 
     prompt = f"""
-    You are an expert educational assistant.
+Summarize the following video transcript in {language}.
 
-    Your task is to summarize a video transcript accurately.
+Rules:
+1. Use only information supported by the transcript.
+2. Do not invent facts or examples.
+3. Preserve the speaker's main ideas and important details.
+4. Make the summary clear, educational, and well-organized.
+5. Write every summary field in {language}.
+6. If a detail is not available in the transcript, do not invent it.
 
-    Rules:
-    1. Use only information supported by the transcript.
-    2. Do not invent facts or examples.
-    3. Preserve the speaker's main ideas and important details.
-    4. Organize the summary using clear headings.
-    5. Write the output in {language}.
+Return a valid JSON object with exactly these fields:
+- title: string
+- short_summary: string
+- detailed_summary: string
+- key_takeaways: array of strings
+- important_concepts: array of strings
 
-    Return the following sections:
+Do not include Markdown fences or text outside the JSON object.
 
-    1. TITLE
-    2. SHORT SUMMARY
-    3. DETAILED SUMMARY
-    4. KEY TAKEAWAYS
-    5. IMPORTANT CONCEPTS
+VIDEO TRANSCRIPT:
+{transcript}
+"""
 
-    VIDEO TRANSCRIPT:
-    {transcript}
-    """
-
-    response = ollama.chat(
-        model=MODEL_NAME,
+    response = client.chat.completions.create(
+        model=GROQ_MODEL,
         messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are VideoMind AI, an educational assistant. "
+                    "Return the requested summary as valid JSON. "
+                    "Ground all claims in the provided transcript."
+                ),
+            },
             {
                 "role": "user",
                 "content": prompt,
-            }
+            },
         ],
-        format=VideoSummary.model_json_schema(),
+        response_format={"type": "json_object"},
     )
-    content = response.message.content
-    if not content :
-        raise ValueError("The model returned an empty response.")
-    summary = VideoSummary.model_validate_json(content)
 
-    return summary
+    content = response.choices[0].message.content
+
+    if not content:
+        raise ValueError("Groq returned an empty summary.")
+
+    try:
+        return VideoSummary.model_validate_json(content)
+    except ValueError as exc:
+        raise ValueError(
+            f"Groq returned an invalid summary JSON: {exc}"
+        ) from exc
+      
+
+    
 
 
 if __name__ == "__main__":

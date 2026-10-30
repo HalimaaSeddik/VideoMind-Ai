@@ -15,4 +15,13 @@ urlpatterns = [
         views.ask_question_view,
         name="ask-question",
     ),
+       path(
+        "videos/<str:video_id>/summary/",
+        views.video_summary_view,
+        name="video-summary",
+    ),
 ]
+
+
+
+

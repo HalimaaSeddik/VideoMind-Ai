@@ -14,3 +14,10 @@ class AskQuestionSerializer(serializers.Serializer):
         max_length=30,
         default="Arabic",
     )
+
+
+class VideoSummarySerializer(serializers.Serializer):
+    language = serializers.ChoiceField(
+        choices=["Arabic", "English", "French"],
+        default="Arabic",
+    )
