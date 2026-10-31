@@ -1,0 +1,17 @@
+Django==6.1.2
+djangorestframework==3.18.3
+django-cors-headers==4.9.0
+python-dotenv==1.2.4
+openai==3.41.0
+chromadb==1.5.9
+ollama==0.6.3
+youtube-transcript-api==1.2.4
+requests==2.34.2
+httpx==0.28.1
+pydantic==2.14.1
+numpy==2.5.4
+gunicorn
+whitenoise
+dj-database-url
+psycopg[binary]
+google-genai

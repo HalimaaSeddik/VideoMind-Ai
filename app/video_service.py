@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -62,10 +63,11 @@ def process_video(
         return metadata
 
     if force_reindex:
-        # Remove the old collection to prevent stale chunks.
-        from app.rag.vector_store import client
+        from app.rag.vector_store import chroma_client
 
-        client.delete_collection(name=f"video_{video_id}")
+        chroma_client.delete_collection(
+            name=f"video_{video_id}"
+        )
 
     print("Extracting transcript...")
     segments = fetch_transcript(video_url)
@@ -88,7 +90,7 @@ def process_video(
         "source_url": video_url,
         "transcript_segment_count": len(segments),
         "chunk_count": indexed_count,
-        "embedding_model": "embeddinggemma",
+        "embedding_model": ("embeddinggemma"if os.getenv("EMBEDDING_PROVIDER", "ollama").lower()== "ollama"else "gemini-embedding-001"),
         "indexed_at": datetime.now(timezone.utc).isoformat(),
     }
 
