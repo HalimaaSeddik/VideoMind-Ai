@@ -209,3 +209,39 @@ def search_similar_chunks(
         )
 
     return retrieved_chunks
+
+
+
+
+def get_all_video_chunks(video_id: str) -> list[dict]:
+    """
+    Retrieve all indexed chunks for a video in their original order.
+    """
+
+    collection = get_video_collection(video_id)
+
+    if collection.count() == 0:
+        raise ValueError(
+            f"No indexed chunks found for video {video_id}."
+        )
+
+    results = collection.get(
+        include=["documents", "metadatas"]
+    )
+
+    chunks = []
+
+    for document, metadata in zip(
+        results["documents"],
+        results["metadatas"],
+    ):
+        chunks.append({
+            "chunk_id": metadata["chunk_id"],
+            "start": metadata["start"],
+            "end": metadata["end"],
+            "text": document,
+        })
+
+    chunks.sort(key=lambda chunk: chunk["chunk_id"])
+
+    return chunks
