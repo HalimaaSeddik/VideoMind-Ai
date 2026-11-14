@@ -2,7 +2,11 @@
 import re
 from urllib.parse import parse_qs, urlparse
 
-from youtube_transcript_api import YouTubeTranscriptApi
+#from youtube_transcript_api import YouTubeTranscriptApi
+
+from app.ingestion.transcript_provider import (
+    fetch_transcript_from_provider,
+)
 
 
 def extract_video_id(url: str) -> str:
@@ -48,11 +52,22 @@ def fetch_transcript(
     url: str,
     languages: list[str] | None = None,
 ) -> list[dict]:
-    """
-    Fetch available captions for a YouTube video.
+    video_id = extract_video_id(url)
 
-    Each returned segment contains text, start time, and duration.
-    """
+    return fetch_transcript_from_provider(
+        video_id=video_id,
+        languages=languages,
+    )
+
+""" def fetch_transcript(
+    url: str,
+    languages: list[str] | None = None,
+) -> list[dict]:
+    
+    #Fetch available captions for a YouTube video.
+
+    #Each returned segment contains text, start time, and duration.
+    
 
     video_id = extract_video_id(url)
 
@@ -78,7 +93,7 @@ def fetch_transcript(
 
     return segments
 
-
+ """
 def segments_to_text(segments: list[dict]) -> str:
     """Combine transcript segments into a single text."""
 
